@@ -39,8 +39,9 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
+          username: ec2-user           # Correct username for Amazon Linux
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
           script: |
             echo "Pulling latest image..."
             docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME:$IMAGE_TAG
@@ -53,4 +54,4 @@ jobs:
             docker run -d --name $CONTAINER_NAME -p $HOST_PORT:$CONTAINER_PORT \
               ${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME:$IMAGE_TAG
 
-            echo "Deployment complete!"
+            echo "✅ Deployment complete!"
