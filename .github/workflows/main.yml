@@ -1,4 +1,4 @@
-name: Build and Run Docker Image
+name: Build, Push and Deploy to EC2
 
 on:
   push:
@@ -7,41 +7,50 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: myapp:latest
+  IMAGE_NAME: myapp
+  IMAGE_TAG: latest
   CONTAINER_NAME: myapp
   HOST_PORT: 3000
   CONTAINER_PORT: 3000
 
 jobs:
-  build-and-test:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: ✅ Checkout repository
         uses: actions/checkout@v3
 
-      - name: 🐳 Set up Docker Buildx (optional but best practice)
+      - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🔧 Build Docker image
-        run: docker build -t $IMAGE_NAME .
+      - name: 🔑 Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-      - name: 🚀 Run Docker container
+      - name: 🔧 Build and push Docker image
         run: |
-          echo "Running container..."
-          docker run -d --name $CONTAINER_NAME -p $HOST_PORT:$CONTAINER_PORT $IMAGE_NAME
-          sleep 10  # Optional delay to allow app to start
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME:$IMAGE_TAG .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME:$IMAGE_TAG
 
-      - name: 📋 List running containers
-        run: docker ps -a
+      - name: 🚀 Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Pulling latest image..."
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME:$IMAGE_TAG
 
-      - name: 📦 View container logs
-        run: docker logs $CONTAINER_NAME
+            echo "Stopping old container if running..."
+            docker stop $CONTAINER_NAME || true
+            docker rm $CONTAINER_NAME || true
 
-      - name: 🧪 (Optional) Health check on container port
-        run: |
-          echo "Checking if app is reachable..."
-          curl --fail http://localhost:$HOST_PORT || (echo "Health check failed!" && exit 1)
+            echo "Running new container..."
+            docker run -d --name $CONTAINER_NAME -p $HOST_PORT:$CONTAINER_PORT \
+              ${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME:$IMAGE_TAG
 
-      - name: 🧹 Stop and remove container
-        run: docker rm -f $CONTAINER_NAME || true
+            echo "Deployment complete!"
