@@ -40,7 +40,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           source: "myapp.tar"
-          target: "/home/ec2-user/myapp.tar"   # absolute path including file name, no trailing slash
+          target: "/home/ec2-user/myapp.tar"   # absolute path including filename
 
       - name: 🖥 Load and run container on EC2
         uses: appleboy/ssh-action@v1.2.0
@@ -56,13 +56,13 @@ jobs:
             CONTAINER_PORT=3000
             IMAGE_PATH="/home/ec2-user/myapp.tar"
 
-            # Ensure no directory exists with the same name
-            if [ -d "$IMAGE_PATH" ]; then
-              echo "Removing existing directory at $IMAGE_PATH"
-              rm -rf "$IMAGE_PATH"
+            # Check if the tar file exists
+            if [ ! -f "$IMAGE_PATH" ]; then
+              echo "Error: Docker image tar not found!"
+              exit 1
             fi
 
-            echo "Checking if image tar exists..."
+            echo "Listing Docker tar file..."
             ls -lh $IMAGE_PATH
 
             echo "Loading Docker image..."
