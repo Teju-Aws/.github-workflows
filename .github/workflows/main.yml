@@ -39,19 +39,23 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ec2-user           # Correct username for Amazon Linux
+          username: ec2-user           # use "ubuntu" if your AMI is Ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
+            IMAGE="${{ secrets.DOCKER_HUB_USERNAME }}/myapp:latest"
+            CONTAINER="myapp"
+            HOST_PORT=3000
+            CONTAINER_PORT=3000
+
             echo "Pulling latest image..."
-            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME:$IMAGE_TAG
+            docker pull $IMAGE
 
             echo "Stopping old container if running..."
-            docker stop $CONTAINER_NAME || true
-            docker rm $CONTAINER_NAME || true
+            docker stop $CONTAINER || true
+            docker rm $CONTAINER || true
 
             echo "Running new container..."
-            docker run -d --name $CONTAINER_NAME -p $HOST_PORT:$CONTAINER_PORT \
-              ${{ secrets.DOCKER_HUB_USERNAME }}/$IMAGE_NAME:$IMAGE_TAG
+            docker run -d --name $CONTAINER -p $HOST_PORT:$CONTAINER_PORT $IMAGE
 
             echo "✅ Deployment complete!"
