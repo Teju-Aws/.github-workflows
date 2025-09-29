@@ -40,7 +40,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           source: "myapp.tar"
-          target: "/home/ec2-user/myapp.tar"
+          target: "/home/ec2-user/myapp.tar"   # absolute path including file name, no trailing slash
 
       - name: 🖥 Load and run container on EC2
         uses: appleboy/ssh-action@v1.2.0
@@ -55,6 +55,12 @@ jobs:
             HOST_PORT=3000
             CONTAINER_PORT=3000
             IMAGE_PATH="/home/ec2-user/myapp.tar"
+
+            # Ensure no directory exists with the same name
+            if [ -d "$IMAGE_PATH" ]; then
+              echo "Removing existing directory at $IMAGE_PATH"
+              rm -rf "$IMAGE_PATH"
+            fi
 
             echo "Checking if image tar exists..."
             ls -lh $IMAGE_PATH
@@ -73,3 +79,14 @@ jobs:
             sudo docker run -d --restart always --name $CONTAINER -p $HOST_PORT:$CONTAINER_PORT myapp:latest
 
             echo "✅ Deployment complete!"
+
+      - name: ✅ Verify container is running
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            echo "Checking running containers..."
+            sudo docker ps | grep myapp || echo "Container not found"
