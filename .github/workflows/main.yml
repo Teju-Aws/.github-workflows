@@ -49,13 +49,13 @@ jobs:
             CONTAINER_PORT=3000
 
             echo "Pulling latest image..."
-            docker pull $IMAGE
+            sudo docker pull $IMAGE
 
             echo "Stopping old container if running..."
-            docker stop $CONTAINER || true
-            docker rm $CONTAINER || true
+            sudo docker stop $CONTAINER || true
+            sudo docker rm $CONTAINER || true
 
             echo "Running new container..."
-            docker run -d --name $CONTAINER -p $HOST_PORT:$CONTAINER_PORT $IMAGE
+            sudo docker run -d --name $CONTAINER -p $HOST_PORT:$CONTAINER_PORT $IMAGE
 
             echo "✅ Deployment complete!"
