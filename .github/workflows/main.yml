@@ -57,10 +57,13 @@ jobs:
             IMAGE_PATH="/home/ec2-user/myapp.tar"
 
             echo "Checking if image tar exists..."
-            ls -l $IMAGE_PATH
+            ls -lh $IMAGE_PATH
 
             echo "Loading Docker image..."
             sudo docker load -i $IMAGE_PATH
+
+            echo "Removing tar file to save space..."
+            rm -f $IMAGE_PATH
 
             echo "Stopping old container if running..."
             sudo docker stop $CONTAINER || true
