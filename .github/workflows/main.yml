@@ -40,7 +40,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           source: "myapp.tar"
-          target: "~/myapp.tar"
+          target: "/home/ec2-user/myapp.tar"
 
       - name: 🖥 Load and run container on EC2
         uses: appleboy/ssh-action@v1.2.0
@@ -50,12 +50,17 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
+            set -e
             CONTAINER="myapp"
             HOST_PORT=3000
             CONTAINER_PORT=3000
+            IMAGE_PATH="/home/ec2-user/myapp.tar"
+
+            echo "Checking if image tar exists..."
+            ls -l $IMAGE_PATH
 
             echo "Loading Docker image..."
-            sudo docker load -i ~/myapp.tar
+            sudo docker load -i $IMAGE_PATH
 
             echo "Stopping old container if running..."
             sudo docker stop $CONTAINER || true
