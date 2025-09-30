@@ -30,17 +30,17 @@ jobs:
 
       - name: 🗜 Save Docker image to tar
         run: |
-          docker save $IMAGE_NAME:$IMAGE_TAG -o myapp.tar
+          docker save $IMAGE_NAME:$IMAGE_TAG -o $IMAGE_NAME.tar
 
       - name: 🚀 Transfer Docker image to EC2
-        uses: appleboy/scp-action@v0.1.4
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          source: "myapp.tar"
-          target: "/home/ec2-user/myapp.tar"   # absolute path including filename
+          source: "${{ env.IMAGE_NAME }}.tar"
+          target: "/home/ec2-user/"
 
       - name: 🖥 Load and run container on EC2
         uses: appleboy/ssh-action@v1.2.0
@@ -51,32 +51,29 @@ jobs:
           port: 22
           script: |
             set -e
-            CONTAINER="myapp"
-            HOST_PORT=3000
-            CONTAINER_PORT=3000
-            IMAGE_PATH="/home/ec2-user/myapp.tar"
+            CONTAINER="${{ env.CONTAINER_NAME }}"
+            HOST_PORT=${{ env.HOST_PORT }}
+            CONTAINER_PORT=${{ env.CONTAINER_PORT }}
+            IMAGE_PATH="/home/ec2-user/${{ env.IMAGE_NAME }}.tar"
 
-            # Check if the tar file exists
-            if [ ! -f "$IMAGE_PATH" ]; then
-              echo "Error: Docker image tar not found!"
-              exit 1
-            fi
-
-            echo "Listing Docker tar file..."
+            echo "Checking tar file..."
             ls -lh $IMAGE_PATH
 
             echo "Loading Docker image..."
             sudo docker load -i $IMAGE_PATH
 
-            echo "Removing tar file to save space..."
+            echo "Removing tar file..."
             rm -f $IMAGE_PATH
 
-            echo "Stopping old container if running..."
+            echo "Stopping old container (if any)..."
             sudo docker stop $CONTAINER || true
             sudo docker rm $CONTAINER || true
 
-            echo "Running new container..."
-            sudo docker run -d --restart always --name $CONTAINER -p $HOST_PORT:$CONTAINER_PORT myapp:latest
+            echo "Starting new container..."
+            sudo docker run -d --restart always \
+              --name $CONTAINER \
+              -p $HOST_PORT:$CONTAINER_PORT \
+              ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
             echo "✅ Deployment complete!"
 
@@ -89,4 +86,4 @@ jobs:
           port: 22
           script: |
             echo "Checking running containers..."
-            sudo docker ps | grep myapp || echo "Container not found"
+            sudo docker ps --filter "name=${{ env.CONTAINER_NAME }}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
